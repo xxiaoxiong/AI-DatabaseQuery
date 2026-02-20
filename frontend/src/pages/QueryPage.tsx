@@ -1,0 +1,374 @@
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { Send, Code2, BarChart2, Table, ChevronDown, ChevronUp, Loader2, RefreshCw, Sparkles, AlertCircle, X } from 'lucide-react'
+import { useAppStore } from '../store/useAppStore'
+import { datasourceApi } from '../api/datasources'
+import { queryApi } from '../api/query'
+import SchemaBrowser from '../components/SchemaBrowser'
+import DataTable from '../components/DataTable'
+import ChartPanel from '../components/ChartPanel'
+
+export default function QueryPage() {
+  const {
+    datasources, activeDatasourceId, activeSchema, schemaLoading,
+    currentQuestion, currentSQL, nl2sqlResult, queryResult,
+    queryLoading, nl2sqlLoading, conversationHistory,
+    setDatasources, setActiveDatasourceId, setActiveSchema, setSchemaLoading,
+    setCurrentQuestion, setCurrentSQL, setNl2sqlResult, setQueryResult,
+    setQueryLoading, setNl2sqlLoading, addToHistory, clearConversation,
+  } = useAppStore()
+
+  const [showSQL, setShowSQL] = useState(false)
+  const [resultTab, setResultTab] = useState<'chart' | 'table'>('chart')
+  const [sqlEditing, setSqlEditing] = useState(false)
+  const [editedSQL, setEditedSQL] = useState('')
+  const [aiPanelOpen, setAiPanelOpen] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  useEffect(() => {
+    datasourceApi.list().then(ds => {
+      setDatasources(ds)
+      if (ds.length > 0 && !activeDatasourceId) {
+        setActiveDatasourceId(ds[0].id)
+      }
+    }).catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    if (!activeDatasourceId) return
+    setSchemaLoading(true)
+    datasourceApi.getSchema(activeDatasourceId)
+      .then(r => setActiveSchema(r.schema))
+      .catch(() => setActiveSchema(null))
+      .finally(() => setSchemaLoading(false))
+  }, [activeDatasourceId])
+
+  const handleSubmit = useCallback(async () => {
+    if (!currentQuestion.trim() || !activeDatasourceId) return
+    setError(null)
+    setNl2sqlLoading(true)
+    setShowSQL(false)
+    setQueryResult(null)
+
+    try {
+      const nl2sql = await queryApi.nl2sql({
+        datasource_id: activeDatasourceId,
+        question: currentQuestion,
+        conversation_history: conversationHistory,
+      })
+      setNl2sqlResult(nl2sql)
+
+      if (nl2sql.clarification) {
+        setNl2sqlLoading(false)
+        return
+      }
+
+      if (!nl2sql.sql) {
+        setError('AI 未能生成 SQL，请尝试更具体的描述')
+        setNl2sqlLoading(false)
+        return
+      }
+
+      setCurrentSQL(nl2sql.sql)
+      setShowSQL(true)
+      setNl2sqlLoading(false)
+      setQueryLoading(true)
+
+      const result = await queryApi.execute({
+        datasource_id: activeDatasourceId,
+        sql: nl2sql.sql,
+        natural_language: currentQuestion,
+        chart_type: nl2sql.chart_suggestion,
+        save_history: true,
+      })
+      setQueryResult(result)
+      if (!result.success) {
+        setError(result.error || '查询执行失败')
+      } else {
+        addToHistory({ nl: currentQuestion, sql: nl2sql.sql })
+        setResultTab(result.chart_type && result.chart_type !== 'table' ? 'chart' : 'table')
+      }
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : '请求失败')
+    } finally {
+      setNl2sqlLoading(false)
+      setQueryLoading(false)
+    }
+  }, [currentQuestion, activeDatasourceId, conversationHistory])
+
+  const handleRunSQL = useCallback(async () => {
+    if (!activeDatasourceId) return
+    const sql = sqlEditing ? editedSQL : currentSQL
+    if (!sql.trim()) return
+    setError(null)
+    setQueryLoading(true)
+
+    try {
+      const result = await queryApi.execute({
+        datasource_id: activeDatasourceId,
+        sql,
+        natural_language: currentQuestion,
+        save_history: true,
+      })
+      setQueryResult(result)
+      if (!result.success) {
+        setError(result.error || '查询执行失败')
+      } else {
+        setResultTab(result.chart_type && result.chart_type !== 'table' ? 'chart' : 'table')
+      }
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : '执行失败')
+    } finally {
+      setQueryLoading(false)
+    }
+  }, [activeDatasourceId, currentSQL, editedSQL, sqlEditing, currentQuestion])
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault()
+      handleSubmit()
+    }
+  }
+
+  const isLoading = nl2sqlLoading || queryLoading
+
+  return (
+    <div className="flex h-full overflow-hidden">
+      {/* Left: Schema Browser */}
+      <div className="w-56 border-r border-slate-200 bg-white flex flex-col shrink-0">
+        <div className="p-2 border-b border-slate-200">
+          <select
+            className="w-full text-sm border border-slate-200 rounded px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+            value={activeDatasourceId ?? ''}
+            onChange={e => {
+              const id = Number(e.target.value)
+              setActiveDatasourceId(id || null)
+              clearConversation()
+            }}
+          >
+            <option value="">选择数据源</option>
+            {datasources.map(ds => (
+              <option key={ds.id} value={ds.id}>{ds.name}</option>
+            ))}
+          </select>
+        </div>
+        <div className="flex-1 overflow-y-auto">
+          <SchemaBrowser schema={activeSchema} loading={schemaLoading} dsId={activeDatasourceId ?? undefined} />
+        </div>
+      </div>
+
+      {/* Center: Query + Results */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Query Input */}
+        <div className="bg-white border-b border-slate-200 p-4 shrink-0">
+          <div className="relative">
+            <textarea
+              ref={textareaRef}
+              value={currentQuestion}
+              onChange={e => setCurrentQuestion(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="用自然语言描述你的查询需求，例如：上个月各城市销售额从高到低..."
+              rows={3}
+              className="w-full resize-none border border-slate-200 rounded-lg px-4 py-3 pr-24 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-400"
+              disabled={isLoading}
+            />
+            <div className="absolute right-3 bottom-3 flex items-center gap-2">
+              <span className="text-xs text-slate-400">Ctrl+Enter</span>
+              <button
+                onClick={handleSubmit}
+                disabled={isLoading || !currentQuestion.trim() || !activeDatasourceId}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {nl2sqlLoading ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                发送
+              </button>
+            </div>
+          </div>
+
+          {/* SQL Preview */}
+          {currentSQL && (
+            <div className="mt-3 border border-slate-200 rounded-lg overflow-hidden">
+              <div className="flex items-center justify-between px-3 py-2 bg-slate-50 border-b border-slate-200">
+                <div className="flex items-center gap-2 text-xs text-slate-600">
+                  <Code2 size={13} />
+                  <span className="font-medium">生成的 SQL</span>
+                  {nl2sqlResult && (
+                    <span className="text-slate-400">
+                      置信度 {Math.round((nl2sqlResult.confidence || 0) * 100)}%
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  {sqlEditing ? (
+                    <>
+                      <button
+                        onClick={() => { setSqlEditing(false); setEditedSQL('') }}
+                        className="text-xs text-slate-500 hover:text-slate-700"
+                      >
+                        取消
+                      </button>
+                      <button
+                        onClick={handleRunSQL}
+                        disabled={queryLoading}
+                        className="flex items-center gap-1 text-xs px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+                      >
+                        {queryLoading ? <Loader2 size={11} className="animate-spin" /> : <RefreshCw size={11} />}
+                        执行
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => { setSqlEditing(true); setEditedSQL(currentSQL) }}
+                        className="text-xs text-blue-600 hover:text-blue-800"
+                      >
+                        编辑
+                      </button>
+                      <button
+                        onClick={handleRunSQL}
+                        disabled={queryLoading}
+                        className="flex items-center gap-1 text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                      >
+                        {queryLoading ? <Loader2 size={11} className="animate-spin" /> : <RefreshCw size={11} />}
+                        重新执行
+                      </button>
+                    </>
+                  )}
+                  <button onClick={() => setShowSQL(v => !v)} className="text-slate-400 hover:text-slate-600">
+                    {showSQL ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                  </button>
+                </div>
+              </div>
+              {showSQL && (
+                sqlEditing ? (
+                  <textarea
+                    value={editedSQL}
+                    onChange={e => setEditedSQL(e.target.value)}
+                    className="w-full p-3 font-mono text-xs bg-slate-900 text-green-400 focus:outline-none resize-none"
+                    rows={6}
+                  />
+                ) : (
+                  <pre className="p-3 font-mono text-xs bg-slate-900 text-green-400 overflow-x-auto whitespace-pre-wrap">
+                    {currentSQL}
+                  </pre>
+                )
+              )}
+            </div>
+          )}
+
+          {/* Error */}
+          {error && (
+            <div className="mt-3 flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+              <AlertCircle size={15} className="shrink-0 mt-0.5" />
+              <span className="flex-1">{error}</span>
+              <button onClick={() => setError(null)}><X size={14} /></button>
+            </div>
+          )}
+
+          {/* Clarification */}
+          {nl2sqlResult?.clarification && (
+            <div className="mt-3 flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
+              <Sparkles size={15} className="shrink-0 mt-0.5" />
+              <span>{nl2sqlResult.clarification}</span>
+            </div>
+          )}
+
+          {/* Loading state */}
+          {isLoading && (
+            <div className="mt-3 flex items-center gap-2 text-sm text-slate-500">
+              <Loader2 size={14} className="animate-spin" />
+              {nl2sqlLoading ? 'AI 正在理解您的问题...' : '正在执行查询...'}
+            </div>
+          )}
+        </div>
+
+        {/* Results */}
+        {queryResult && (
+          <div className="flex-1 flex overflow-hidden">
+            <div className="flex-1 flex flex-col overflow-hidden">
+              {/* Result tabs */}
+              <div className="flex items-center gap-1 px-4 py-2 border-b border-slate-200 bg-white shrink-0">
+                <button
+                  onClick={() => setResultTab('chart')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-colors ${
+                    resultTab === 'chart' ? 'bg-blue-100 text-blue-700 font-medium' : 'text-slate-600 hover:bg-slate-100'
+                  }`}
+                >
+                  <BarChart2 size={14} />
+                  图表
+                </button>
+                <button
+                  onClick={() => setResultTab('table')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-colors ${
+                    resultTab === 'table' ? 'bg-blue-100 text-blue-700 font-medium' : 'text-slate-600 hover:bg-slate-100'
+                  }`}
+                >
+                  <Table size={14} />
+                  表格
+                </button>
+                <div className="ml-auto text-xs text-slate-400">
+                  {queryResult.row_count} 行 · {queryResult.execution_time_ms}ms
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-hidden p-4">
+                {resultTab === 'chart' ? (
+                  <ChartPanel
+                    chartType={queryResult.chart_type || 'table'}
+                    columns={queryResult.columns}
+                    rows={queryResult.rows}
+                  />
+                ) : (
+                  <DataTable columns={queryResult.columns} rows={queryResult.rows} />
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {!queryResult && !isLoading && (
+          <div className="flex-1 flex items-center justify-center text-slate-400">
+            <div className="text-center">
+              <Sparkles size={40} className="mx-auto mb-3 opacity-30" />
+              <p className="text-sm">输入问题，AI 将自动生成 SQL 并展示结果</p>
+              <p className="text-xs mt-1 text-slate-300">支持中英文 · Ctrl+Enter 快速提交</p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Right: AI Analysis Panel */}
+      {queryResult?.ai_summary && (
+        <div className={`border-l border-slate-200 bg-white flex flex-col transition-all ${aiPanelOpen ? 'w-72' : 'w-10'} shrink-0`}>
+          <div className="flex items-center justify-between p-3 border-b border-slate-200">
+            {aiPanelOpen && (
+              <div className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                <Sparkles size={14} className="text-purple-500" />
+                AI 分析
+              </div>
+            )}
+            <button
+              onClick={() => setAiPanelOpen(v => !v)}
+              className="text-slate-400 hover:text-slate-600 ml-auto"
+            >
+              {aiPanelOpen ? <ChevronDown size={14} /> : <Sparkles size={14} />}
+            </button>
+          </div>
+          {aiPanelOpen && (
+            <div className="flex-1 overflow-y-auto p-3">
+              <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">
+                {queryResult.ai_summary}
+              </p>
+              {nl2sqlResult?.explanation && (
+                <div className="mt-4 pt-3 border-t border-slate-100">
+                  <div className="text-xs font-semibold text-slate-500 mb-1">查询说明</div>
+                  <p className="text-xs text-slate-500 leading-relaxed">{nl2sqlResult.explanation}</p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}

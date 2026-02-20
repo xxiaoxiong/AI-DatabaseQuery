@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
+backend/venv/
+backend/.venv/
+venv/
+.venv/
+
+# Environment variables (contains secrets!)
+backend/.env
+.env
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Node
+frontend/node_modules/
+node_modules/
+
+# Frontend build output
+frontend/dist/
+frontend/.cache/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+logs/
+
+# Database files
+*.db
+*.sqlite3
+
+# Test / coverage
+.pytest_cache/
+htmlcov/
+.coverage
