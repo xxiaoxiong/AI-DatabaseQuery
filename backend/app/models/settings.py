@@ -10,4 +10,4 @@ class SystemSettings(Base):
     key = Column(String(100), unique=True, nullable=False)
     value = Column(Text, nullable=True)
     description = Column(Text, nullable=True)
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())
+    updated_at = Column(DateTime, onupdate=func.now(), server_default=func.now())

@@ -18,4 +18,4 @@ class QueryHistory(Base):
     ai_summary = Column(Text, nullable=True)
     chart_type = Column(String(50), nullable=True)
     is_favorite = Column(Integer, default=0)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime, server_default=func.now())

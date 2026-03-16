@@ -9,8 +9,8 @@ class Settings(BaseSettings):
     APP_NAME: str = "AI-DatabaseQuery"
     DEBUG: bool = False
 
-    # System DB (MySQL)
-    SYSTEM_DB_URL: str = "mysql+aiomysql://root:123456@localhost:3306/ai_dbquery"
+    # System DB (SQLite)
+    SYSTEM_DB_URL: str = "sqlite+aiosqlite:///./ai_dbquery.db"
 
     # LLM
     LLM_BASE_URL: str = "https://api.deepseek.com"

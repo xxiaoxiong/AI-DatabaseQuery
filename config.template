@@ -1,5 +1,5 @@
-# MySQL 数据库配置
-SYSTEM_DB_URL=mysql+aiomysql://root:123456@localhost:3306/ai_dbquery
+# SQLite 数据库配置（推荐）
+SYSTEM_DB_URL=sqlite+aiosqlite:///./ai_dbquery.db
 
 # 本地大模型配置（选择一种）
 
