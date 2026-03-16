@@ -18,10 +18,10 @@ if not exist ".env" (
 
 call venv\Scripts\activate.bat
 
-echo Starting FastAPI at http://localhost:8000 ...
+echo Starting FastAPI at http://localhost:9999 ...
 echo Press Ctrl+C to stop.
 echo.
 
-venv\Scripts\uvicorn.exe app.main:app --host 0.0.0.0 --port 8000 --reload
+venv\Scripts\uvicorn.exe app.main:app --host 0.0.0.0 --port 9999 --reload
 
 pause
