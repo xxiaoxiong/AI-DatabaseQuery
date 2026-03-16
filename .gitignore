@@ -15,6 +15,9 @@ backend/.venv/
 venv/
 .venv/
 
+release/
+.release/
+
 # Environment variables (contains secrets!)
 backend/.env
 .env

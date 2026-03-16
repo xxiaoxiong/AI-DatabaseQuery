@@ -12,7 +12,7 @@ class DataSource(Base):
     host = Column(String(255), nullable=True)
     port = Column(Integer, nullable=True)
     username = Column(String(100), nullable=True)
-    password_encrypted = Column(Text, nullable=True)
+    password = Column(Text, nullable=True)
     database_name = Column(String(100), nullable=False)
     description = Column(Text, nullable=True)
     is_active = Column(Boolean, default=True)

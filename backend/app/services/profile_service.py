@@ -1,6 +1,5 @@
 from sqlalchemy import text
 from app.models.datasource import DataSource
-from app.utils.encryption import decrypt_password
 import logging
 
 logger = logging.getLogger(__name__)
@@ -39,8 +38,7 @@ def _classify_col(col_name: str, col_type: str) -> str:
 
 async def get_table_profile(ds: DataSource, table_name: str) -> dict:
     from sqlalchemy.ext.asyncio import create_async_engine
-    plain_pw = decrypt_password(ds.password_encrypted) if ds.password_encrypted else ""
-    url = _build_connection_url(ds, plain_pw)
+    url = _build_connection_url(ds, ds.password or "")
     engine = create_async_engine(url)
 
     result = {
@@ -145,8 +143,7 @@ async def get_table_profile(ds: DataSource, table_name: str) -> dict:
 
 async def get_table_trend(ds: DataSource, table_name: str, time_col: str, days: int = 30) -> dict:
     from sqlalchemy.ext.asyncio import create_async_engine
-    plain_pw = decrypt_password(ds.password_encrypted) if ds.password_encrypted else ""
-    url = _build_connection_url(ds, plain_pw)
+    url = _build_connection_url(ds, ds.password or "")
     engine = create_async_engine(url)
 
     result = {"time_col": time_col, "days": days, "data": []}

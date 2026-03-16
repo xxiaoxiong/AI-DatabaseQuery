@@ -18,9 +18,6 @@ class Settings(BaseSettings):
     LLM_MODEL: str = "deepseek-chat"
     LLM_TIMEOUT: int = 60
 
-    # Security
-    ENCRYPTION_KEY: str = ""  # Fernet key for encrypting DB passwords
-
     # Query limits
     QUERY_TIMEOUT: int = 30
     QUERY_MAX_ROWS: int = 10000
@@ -28,6 +25,7 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
+        extra = "ignore"  # 忽略额外的环境变量
 
 
 settings = Settings()

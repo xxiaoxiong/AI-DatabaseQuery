@@ -7,7 +7,6 @@ import asyncio
 
 from app.models.datasource import DataSource
 from app.models.query_history import QueryHistory
-from app.utils.encryption import decrypt_password
 from app.services.sql_security import validate_sql
 from app.config import settings
 
@@ -34,8 +33,7 @@ async def execute_query(ds: DataSource, sql: str) -> dict:
             "execution_time_ms": 0,
         }
 
-    plain_pw = decrypt_password(ds.password_encrypted) if ds.password_encrypted else ""
-    url = _build_connection_url(ds, plain_pw)
+    url = _build_connection_url(ds, ds.password or "")
     engine = create_async_engine(url, pool_pre_ping=True)
 
     start = time.time()

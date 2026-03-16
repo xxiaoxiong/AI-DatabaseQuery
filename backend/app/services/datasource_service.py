@@ -5,19 +5,17 @@ from typing import Optional
 import asyncio
 
 from app.models.datasource import DataSource
-from app.utils.encryption import encrypt_password, decrypt_password
 from app.schemas.datasource import DataSourceCreate, DataSourceUpdate
 
 
 async def create_datasource(db: AsyncSession, data: DataSourceCreate) -> DataSource:
-    encrypted_pw = encrypt_password(data.password) if data.password else None
     ds = DataSource(
         name=data.name,
         db_type=data.db_type,
         host=data.host,
         port=data.port,
         username=data.username,
-        password_encrypted=encrypted_pw,
+        password=data.password,
         database_name=data.database_name,
         description=data.description,
     )
@@ -42,10 +40,9 @@ async def update_datasource(db: AsyncSession, ds_id: int, data: DataSourceUpdate
     if not ds:
         return None
     update_data = data.model_dump(exclude_unset=True)
-    if "password" in update_data:
-        pw = update_data.pop("password")
-        if pw:
-            ds.password_encrypted = encrypt_password(pw)
+    # 如果密码为空字符串，则不更新密码字段（保持原有密码）
+    if "password" in update_data and not update_data["password"]:
+        del update_data["password"]
     for k, v in update_data.items():
         setattr(ds, k, v)
     await db.commit()
@@ -74,8 +71,7 @@ def _build_connection_url(ds: DataSource, plain_password: str) -> str:
 
 async def test_connection(ds: DataSource) -> dict:
     from sqlalchemy.ext.asyncio import create_async_engine
-    plain_pw = decrypt_password(ds.password_encrypted) if ds.password_encrypted else ""
-    url = _build_connection_url(ds, plain_pw)
+    url = _build_connection_url(ds, ds.password or "")
     try:
         engine = create_async_engine(url, pool_pre_ping=True)
         async with engine.connect() as conn:
@@ -88,8 +84,7 @@ async def test_connection(ds: DataSource) -> dict:
 
 async def get_schema(ds: DataSource) -> dict:
     from sqlalchemy.ext.asyncio import create_async_engine
-    plain_pw = decrypt_password(ds.password_encrypted) if ds.password_encrypted else ""
-    url = _build_connection_url(ds, plain_pw)
+    url = _build_connection_url(ds, ds.password or "")
     engine = create_async_engine(url)
     schema = {}
     try:
