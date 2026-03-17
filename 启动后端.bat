@@ -18,10 +18,19 @@ if not exist ".env" (
 
 call venv\Scripts\activate.bat
 
+echo Checking if port 9999 is already in use...
+for /f "tokens=5" %%a in ('netstat -ano ^| findstr :9999 ^| findstr LISTENING 2^>nul') do (
+    echo Port 9999 is in use by process %%a, stopping it...
+    taskkill /F /PID %%a 2>nul
+    timeout /t 1 >nul
+)
+
+echo.
 echo Starting FastAPI at http://localhost:9999 ...
-echo Press Ctrl+C to stop.
+echo Press Ctrl+C to stop, or close this window.
 echo.
 
 venv\Scripts\uvicorn.exe app.main:app --host 0.0.0.0 --port 9999 --reload
 
-pause
+echo.
+echo Backend stopped.
