@@ -61,3 +61,47 @@ class AnalyzeRequest(BaseModel):
     sql: str
     columns: list[str]
     rows: list[dict]
+
+
+class ExportRequest(BaseModel):
+    history_id: int
+    format: str = Field(..., pattern="^(excel|csv)$")  # excel 或 csv
+
+
+class QueryFavoriteResponse(BaseModel):
+    id: int
+    datasource_id: Optional[int]
+    natural_language: str
+    generated_sql: Optional[str]
+    tags: Optional[str]
+    description: Optional[str]
+    execute_count: int
+    last_executed_at: Optional[datetime]
+    created_at: Optional[datetime]
+    updated_at: Optional[datetime]
+
+    class Config:
+        from_attributes = True
+
+
+class CreateFavoriteRequest(BaseModel):
+    datasource_id: int
+    natural_language: str
+    generated_sql: Optional[str] = None
+    tags: Optional[str] = None
+    description: Optional[str] = None
+
+
+class UpdateFavoriteRequest(BaseModel):
+    tags: Optional[str] = None
+    description: Optional[str] = None
+    natural_language: Optional[str] = None
+    generated_sql: Optional[str] = None
+
+
+class SearchFavoritesRequest(BaseModel):
+    keyword: Optional[str] = None
+    tags: Optional[list[str]] = None
+    datasource_id: Optional[int] = None
+    limit: int = 50
+    offset: int = 0

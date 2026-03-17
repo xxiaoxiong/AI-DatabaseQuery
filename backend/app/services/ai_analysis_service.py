@@ -13,6 +13,28 @@ ANALYSIS_SYSTEM_PROMPT = """你是专业数据分析师，请对以下查询结�
 """
 
 
+async def call_llm(
+    prompt: str,
+    llm_base_url: Optional[str] = None,
+    llm_api_key: Optional[str] = None,
+) -> str:
+    """调用 LLM 的通用函数"""
+    messages = [
+        {"role": "user", "content": prompt},
+    ]
+    try:
+        result = await chat_completion(
+            messages=messages,
+            temperature=0.3,
+            base_url=llm_base_url,
+            api_key=llm_api_key,
+        )
+        return result
+    except Exception as e:
+        logger.error(f"LLM call failed: {e}")
+        raise
+
+
 async def analyze_data(
     question: str,
     sql: str,

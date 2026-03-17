@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
-import { Plus, Pencil, Trash2, TestTube2, CheckCircle, XCircle, Loader2, Database } from 'lucide-react'
+import { Plus, Pencil, Trash2, TestTube2, CheckCircle, XCircle, Loader2, Database, BookOpen } from 'lucide-react'
 import { datasourceApi, DataSource, DataSourceCreate } from '../api/datasources'
+import GenerateDictionaryModal from '../components/GenerateDictionaryModal'
 
 const DB_TYPES = [
   { value: 'mysql', label: 'MySQL', defaultPort: 3306 },
@@ -27,6 +28,7 @@ export default function DataSourcesPage() {
   const [saving, setSaving] = useState(false)
   const [testResults, setTestResults] = useState<Record<number, { success: boolean; message: string } | 'testing'>>({})
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null)
+  const [showDictionaryModal, setShowDictionaryModal] = useState<{ dsId: number; dsName: string } | null>(null)
 
   const load = () => {
     setLoading(true)
@@ -165,6 +167,13 @@ export default function DataSourcesPage() {
                         <TestTube2 size={11} />
                       )}
                       测试连接
+                    </button>
+                    <button
+                      onClick={() => setShowDictionaryModal({ dsId: ds.id, dsName: ds.name })}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-slate-200 rounded-md hover:bg-slate-50 transition-colors"
+                    >
+                      <BookOpen size={11} />
+                      生成字典
                     </button>
                     {testResult && testResult !== 'testing' && (
                       <div className={`flex items-center gap-1 text-xs ${testResult.success ? 'text-green-600' : 'text-red-600'}`}>
@@ -307,6 +316,15 @@ export default function DataSourcesPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Dictionary Modal */}
+      {showDictionaryModal && (
+        <GenerateDictionaryModal
+          dsId={showDictionaryModal.dsId}
+          dsName={showDictionaryModal.dsName}
+          onClose={() => setShowDictionaryModal(null)}
+        />
       )}
     </div>
   )

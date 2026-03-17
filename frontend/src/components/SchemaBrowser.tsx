@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronRight, ChevronDown, Table2, Columns, BarChart2 } from 'lucide-react'
+import { ChevronRight, ChevronDown, Table2, Columns, BarChart2, Info } from 'lucide-react'
 import type { Schema } from '../api/datasources'
+import TableProfileModal from './TableProfileModal'
 
 interface Props {
   schema: Schema | null
@@ -11,6 +12,7 @@ interface Props {
 
 export default function SchemaBrowser({ schema, loading, dsId }: Props) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  const [selectedTable, setSelectedTable] = useState<string | null>(null)
   const navigate = useNavigate()
 
   const toggle = (table: string) => {
@@ -25,6 +27,11 @@ export default function SchemaBrowser({ schema, loading, dsId }: Props) {
   const goProfile = (e: React.MouseEvent, tableName: string) => {
     e.stopPropagation()
     if (dsId) navigate(`/profile/${dsId}/${tableName}`)
+  }
+
+  const showTableInfo = (e: React.MouseEvent, tableName: string) => {
+    e.stopPropagation()
+    setSelectedTable(tableName)
   }
 
   if (loading) {
@@ -77,16 +84,26 @@ export default function SchemaBrowser({ schema, loading, dsId }: Props) {
                   {tableInfo.comment}
                 </span>
               )}
-              {dsId && (
-                <span
-                  role="button"
-                  onClick={(e) => goProfile(e, tableName)}
-                  title="查看数据概览"
-                  className="ml-auto opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-blue-100 transition-all shrink-0"
-                >
-                  <BarChart2 size={12} className="text-blue-500" />
-                </span>
-              )}
+              <div className="ml-auto flex gap-0.5 opacity-0 group-hover:opacity-100 transition-all shrink-0">
+                {dsId && (
+                  <>
+                    <button
+                      onClick={(e) => showTableInfo(e, tableName)}
+                      title="查看表详情"
+                      className="p-0.5 rounded hover:bg-blue-100"
+                    >
+                      <Info size={12} className="text-blue-500" />
+                    </button>
+                    <button
+                      onClick={(e) => goProfile(e, tableName)}
+                      title="查看数据概览"
+                      className="p-0.5 rounded hover:bg-blue-100"
+                    >
+                      <BarChart2 size={12} className="text-blue-500" />
+                    </button>
+                  </>
+                )}
+              </div>
             </button>
             {expanded.has(tableName) && (
               <div className="bg-slate-50 border-l-2 border-blue-200 ml-4">
@@ -111,6 +128,14 @@ export default function SchemaBrowser({ schema, loading, dsId }: Props) {
           </div>
         ))}
       </div>
+
+      {selectedTable && dsId && (
+        <TableProfileModal
+          dsId={dsId}
+          tableName={selectedTable}
+          onClose={() => setSelectedTable(null)}
+        />
+      )}
     </div>
   )
 }

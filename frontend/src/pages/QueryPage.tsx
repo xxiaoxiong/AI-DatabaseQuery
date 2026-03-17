@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Send, Code2, BarChart2, Table, ChevronDown, ChevronUp, Loader2, RefreshCw, Sparkles, AlertCircle, X } from 'lucide-react'
+import { Send, Code2, BarChart2, Table, ChevronDown, ChevronUp, Loader2, RefreshCw, Sparkles, AlertCircle, X, Download, Star } from 'lucide-react'
 import { useAppStore } from '../store/useAppStore'
 import { datasourceApi } from '../api/datasources'
 import { queryApi } from '../api/query'
@@ -23,6 +23,13 @@ export default function QueryPage() {
   const [editedSQL, setEditedSQL] = useState('')
   const [aiPanelOpen, setAiPanelOpen] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [exportLoading, setExportLoading] = useState(false)
+  const [showExportMenu, setShowExportMenu] = useState(false)
+  const [showFavorites, setShowFavorites] = useState(false)
+  const [favorites, setFavorites] = useState<any[]>([])
+  const [favoritesLoading, setFavoritesLoading] = useState(false)
+  const [selectedFavorite, setSelectedFavorite] = useState<any>(null)
+  const [editingFavSQL, setEditingFavSQL] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
@@ -42,6 +49,53 @@ export default function QueryPage() {
       .catch(() => setActiveSchema(null))
       .finally(() => setSchemaLoading(false))
   }, [activeDatasourceId])
+
+  // 加载收藏列表
+  const loadFavorites = useCallback(async () => {
+    if (!activeDatasourceId) return
+    setFavoritesLoading(true)
+    try {
+      const data = await queryApi.getFavoritesList(activeDatasourceId, 10)
+      setFavorites(data)
+    } catch (e) {
+      console.error('加载收藏失败', e)
+    } finally {
+      setFavoritesLoading(false)
+    }
+  }, [activeDatasourceId])
+
+  // 快速执行收藏
+  const handleExecuteFavorite = useCallback(async (favoriteId: number, customSQL?: string) => {
+    setError(null)
+    setQueryLoading(true)
+    try {
+      const sql = customSQL || selectedFavorite?.generated_sql
+      if (!sql) {
+        setError('没有 SQL 语句')
+        setQueryLoading(false)
+        return
+      }
+
+      const result = await queryApi.execute({
+        datasource_id: activeDatasourceId!,
+        sql,
+        natural_language: selectedFavorite?.natural_language,
+        save_history: true,
+      })
+      setQueryResult(result)
+      if (!result.success) {
+        setError(result.error || '查询执行失败')
+      } else {
+        setResultTab(result.chart_type && result.chart_type !== 'table' ? 'chart' : 'table')
+        setShowFavorites(false)
+        setSelectedFavorite(null)
+      }
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : '执行失败')
+    } finally {
+      setQueryLoading(false)
+    }
+  }, [selectedFavorite, activeDatasourceId])
 
   const handleSubmit = useCallback(async () => {
     if (!currentQuestion.trim() || !activeDatasourceId) return
@@ -130,6 +184,27 @@ export default function QueryPage() {
     }
   }
 
+  const handleExport = useCallback(async (format: 'excel' | 'csv') => {
+    if (!queryResult?.history_id) return
+    setExportLoading(true)
+    try {
+      const blob = await queryApi.export(queryResult.history_id, format)
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `查询结果_${new Date().getTime()}.${format === 'excel' ? 'xlsx' : 'csv'}`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      setShowExportMenu(false)
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : '导出失败')
+    } finally {
+      setExportLoading(false)
+    }
+  }, [queryResult?.history_id])
+
   const isLoading = nl2sqlLoading || queryLoading
 
   return (
@@ -175,6 +250,13 @@ export default function QueryPage() {
             <div className="absolute right-3 bottom-3 flex items-center gap-2">
               <span className="text-xs text-slate-400">Ctrl+Enter</span>
               <button
+                onClick={() => { setShowFavorites(!showFavorites); if (!showFavorites) loadFavorites() }}
+                className="flex items-center gap-1.5 px-2 py-1.5 bg-amber-100 text-amber-700 rounded-md text-xs font-medium hover:bg-amber-200 transition-colors"
+                title="快速选择收藏查询"
+              >
+                <Star size={12} />
+              </button>
+              <button
                 onClick={handleSubmit}
                 disabled={isLoading || !currentQuestion.trim() || !activeDatasourceId}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
@@ -184,6 +266,75 @@ export default function QueryPage() {
               </button>
             </div>
           </div>
+
+          {/* 收藏快速选择 */}
+          {showFavorites && (
+            <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-semibold text-amber-900">我的收藏</h3>
+                <button onClick={() => { setShowFavorites(false); setSelectedFavorite(null) }} className="text-amber-400 hover:text-amber-600">
+                  <X size={14} />
+                </button>
+              </div>
+              
+              {!selectedFavorite ? (
+                // 收藏列表
+                favoritesLoading ? (
+                  <div className="flex items-center gap-2 text-sm text-amber-700">
+                    <Loader2 size={14} className="animate-spin" />
+                    加载中...
+                  </div>
+                ) : favorites.length === 0 ? (
+                  <p className="text-sm text-amber-600">暂无收藏</p>
+                ) : (
+                  <div className="space-y-1 max-h-48 overflow-y-auto">
+                    {favorites.map(fav => (
+                      <button
+                        key={fav.id}
+                        onClick={() => { setSelectedFavorite(fav); setEditingFavSQL(fav.generated_sql || '') }}
+                        className="w-full text-left px-2 py-1.5 text-sm text-amber-900 hover:bg-amber-100 rounded transition-colors truncate"
+                        title={fav.natural_language}
+                      >
+                        {fav.natural_language}
+                      </button>
+                    ))}
+                  </div>
+                )
+              ) : (
+                // 选中的收藏详情
+                <div className="space-y-2">
+                  <div>
+                    <div className="text-xs font-semibold text-amber-900 mb-1">问题</div>
+                    <div className="text-sm text-amber-800 bg-white p-2 rounded">{selectedFavorite.natural_language}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs font-semibold text-amber-900 mb-1">SQL 语句</div>
+                    <textarea
+                      value={editingFavSQL}
+                      onChange={e => setEditingFavSQL(e.target.value)}
+                      className="w-full px-2 py-1.5 text-xs font-mono border border-amber-200 rounded focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none"
+                      rows={3}
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setSelectedFavorite(null)}
+                      className="flex-1 px-2 py-1.5 text-xs text-amber-700 hover:bg-amber-100 rounded transition-colors"
+                    >
+                      返回
+                    </button>
+                    <button
+                      onClick={() => handleExecuteFavorite(selectedFavorite.id, editingFavSQL)}
+                      disabled={queryLoading}
+                      className="flex-1 px-2 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                    >
+                      {queryLoading ? '执行中...' : '执行'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* SQL Preview */}
           {currentSQL && (
@@ -306,8 +457,57 @@ export default function QueryPage() {
                   <Table size={14} />
                   表格
                 </button>
-                <div className="ml-auto text-xs text-slate-400">
-                  {queryResult.row_count} 行 · {queryResult.execution_time_ms}ms
+                <div className="ml-auto flex items-center gap-2">
+                  <div className="text-xs text-slate-400">
+                    {queryResult.row_count} 行 · {queryResult.execution_time_ms}ms
+                  </div>
+                  <button
+                    onClick={async () => {
+                      try {
+                        await queryApi.createFavorite({
+                          datasource_id: activeDatasourceId!,
+                          natural_language: currentQuestion,
+                          generated_sql: currentSQL,
+                        })
+                        alert('已添加到收藏')
+                      } catch (e) {
+                        alert('添加收藏失败')
+                      }
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors"
+                    title="添加到收藏"
+                  >
+                    <Star size={14} />
+                    收藏
+                  </button>
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowExportMenu(!showExportMenu)}
+                      disabled={exportLoading}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-50 transition-colors"
+                    >
+                      {exportLoading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                      导出
+                    </button>
+                    {showExportMenu && (
+                      <div className="absolute right-0 mt-1 bg-white border border-slate-200 rounded-md shadow-lg z-10">
+                        <button
+                          onClick={() => handleExport('excel')}
+                          disabled={exportLoading}
+                          className="block w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+                        >
+                          导出为 Excel
+                        </button>
+                        <button
+                          onClick={() => handleExport('csv')}
+                          disabled={exportLoading}
+                          className="block w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 disabled:opacity-50 border-t border-slate-100"
+                        >
+                          导出为 CSV
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 

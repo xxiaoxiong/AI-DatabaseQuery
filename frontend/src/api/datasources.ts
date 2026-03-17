@@ -74,6 +74,33 @@ export interface TableTrend {
   data: TrendPoint[]
 }
 
+export interface AITableProfile {
+  id: number
+  datasource_id: number
+  table_name: string
+  table_description: string | null
+  business_meaning: string | null
+  field_descriptions: string | null  // JSON string
+  related_tables: string | null  // JSON string
+  user_notes: string | null
+  created_at: string | null
+  updated_at: string | null
+}
+
+export interface DictionaryTask {
+  id: number
+  datasource_id: number
+  task_name: string
+  status: string
+  format: string
+  include_examples: number
+  include_relations: number
+  file_path: string | null
+  error_message: string | null
+  created_at: string | null
+  completed_at: string | null
+}
+
 export const datasourceApi = {
   list: () => apiClient.get<DataSource[]>('/api/datasources').then(r => r.data),
   get: (id: number) => apiClient.get<DataSource>(`/api/datasources/${id}`).then(r => r.data),
@@ -91,4 +118,19 @@ export const datasourceApi = {
     apiClient.get<TableTrend>(`/api/datasources/${dsId}/tables/${tableName}/trend`, {
       params: { time_col: timeCol, days },
     }).then(r => r.data),
+  getAITableProfile: (dsId: number, tableName: string) =>
+    apiClient.get<AITableProfile>(`/api/datasources/${dsId}/tables/${tableName}/ai-profile`).then(r => r.data),
+  updateAITableProfile: (dsId: number, tableName: string, userNotes: string) =>
+    apiClient.put<AITableProfile>(`/api/datasources/${dsId}/tables/${tableName}/ai-profile`, { user_notes: userNotes }).then(r => r.data),
+  generateDictionary: (dsId: number, taskName: string, format: string, includeExamples: boolean, includeRelations: boolean) =>
+    apiClient.post<DictionaryTask>(`/api/datasources/${dsId}/generate-dictionary`, {
+      task_name: taskName,
+      format,
+      include_examples: includeExamples,
+      include_relations: includeRelations,
+    }).then(r => r.data),
+  getDictionaryTask: (dsId: number, taskId: number) =>
+    apiClient.get<DictionaryTask>(`/api/datasources/${dsId}/dictionary-task/${taskId}`).then(r => r.data),
+  downloadDictionary: (dsId: number, taskId: number) =>
+    apiClient.get(`/api/datasources/${dsId}/dictionary-download/${taskId}`, { responseType: 'blob' }).then(r => r.data),
 }
