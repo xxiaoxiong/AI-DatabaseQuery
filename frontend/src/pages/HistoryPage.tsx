@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Star, StarOff, Clock, CheckCircle, XCircle, Loader2, History, Heart } from 'lucide-react'
 import { queryApi, QueryHistory } from '../api/query'
 import FavoritesPanel from '../components/FavoritesPanel'
+import { toast } from '../components/Toast'
 
 export default function HistoryPage() {
   const [history, setHistory] = useState<QueryHistory[]>([])
@@ -34,10 +35,10 @@ export default function HistoryPage() {
         natural_language: item.natural_language,
         generated_sql: item.generated_sql || undefined,
       })
-      alert('已添加到收藏')
+      toast.success('已添加到收藏')
     } catch (e) {
       console.error('添加收藏失败', e)
-      alert('添加收藏失败')
+      toast.error('添加收藏失败')
     } finally {
       setAddingFavorite(null)
     }

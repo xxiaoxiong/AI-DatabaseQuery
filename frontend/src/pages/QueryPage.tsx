@@ -6,6 +6,7 @@ import { queryApi } from '../api/query'
 import SchemaBrowser from '../components/SchemaBrowser'
 import DataTable from '../components/DataTable'
 import ChartPanel from '../components/ChartPanel'
+import { toast } from '../components/Toast'
 
 // 拖拽分隔线组件
 function ResizeDivider({ onMouseDown }: { onMouseDown: (e: React.MouseEvent) => void }) {
@@ -537,9 +538,9 @@ export default function QueryPage() {
                           natural_language: currentQuestion,
                           generated_sql: currentSQL,
                         })
-                        alert('已添加到收藏')
+                        toast.success('已添加到收藏')
                       } catch (e) {
-                        alert('添加收藏失败')
+                        toast.error('添加收藏失败')
                       }
                     }}
                     className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors"

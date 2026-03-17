@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ChevronRight, ChevronDown, Table2, Columns, BarChart2, Info } from 'lucide-react'
 import type { Schema } from '../api/datasources'
 import TableProfileModal from './TableProfileModal'
+import Tooltip from './Tooltip'
 
 interface Props {
   schema: Schema | null
@@ -78,35 +79,38 @@ export default function SchemaBrowser({ schema, loading, dsId }: Props) {
                 <ChevronRight size={12} className="text-slate-400 shrink-0" />
               )}
               <Table2 size={13} className="text-blue-500 shrink-0" />
-              <span
-                className="font-medium text-slate-700 truncate"
-                title={tableInfo.comment ? `${tableName}  ${tableInfo.comment}` : tableName}
-              >{tableName}</span>
+              <Tooltip
+                content={tableInfo.comment ? `${tableName}\n${tableInfo.comment}` : tableName}
+                placement="right"
+              >
+                <span className="font-medium text-slate-700 truncate">{tableName}</span>
+              </Tooltip>
               {tableInfo.comment && (
-                <span
-                  className="text-slate-400 text-xs truncate ml-1"
-                  title={tableInfo.comment}
-                >
-                  {tableInfo.comment}
-                </span>
+                <Tooltip content={tableInfo.comment} placement="right">
+                  <span className="text-slate-400 text-xs truncate ml-1">
+                    {tableInfo.comment}
+                  </span>
+                </Tooltip>
               )}
               <div className="ml-auto flex gap-0.5 opacity-0 group-hover:opacity-100 transition-all shrink-0">
                 {dsId && (
                   <>
-                    <button
-                      onClick={(e) => showTableInfo(e, tableName)}
-                      title="查看表详情"
-                      className="p-0.5 rounded hover:bg-blue-100"
-                    >
-                      <Info size={12} className="text-blue-500" />
-                    </button>
-                    <button
-                      onClick={(e) => goProfile(e, tableName)}
-                      title="查看数据概览"
-                      className="p-0.5 rounded hover:bg-blue-100"
-                    >
-                      <BarChart2 size={12} className="text-blue-500" />
-                    </button>
+                    <Tooltip content="查看表详情" placement="top">
+                      <button
+                        onClick={(e) => showTableInfo(e, tableName)}
+                        className="p-0.5 rounded hover:bg-blue-100"
+                      >
+                        <Info size={12} className="text-blue-500" />
+                      </button>
+                    </Tooltip>
+                    <Tooltip content="查看数据概览" placement="top">
+                      <button
+                        onClick={(e) => goProfile(e, tableName)}
+                        className="p-0.5 rounded hover:bg-blue-100"
+                      >
+                        <BarChart2 size={12} className="text-blue-500" />
+                      </button>
+                    </Tooltip>
                   </>
                 )}
               </div>
@@ -121,21 +125,21 @@ export default function SchemaBrowser({ schema, loading, dsId }: Props) {
                     col.comment || '',
                   ].filter(Boolean).join('  |  ')
                   return (
-                    <div
-                      key={col.name}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs hover:bg-slate-100 cursor-default"
-                      title={colTooltip}
-                    >
-                      <Columns size={11} className="text-slate-400 shrink-0" />
-                      <span className="text-slate-700 font-mono truncate max-w-[80px]">{col.name}</span>
-                      <span className="text-slate-400 truncate max-w-[60px]">{col.type}</span>
-                      {col.key === 'PRI' && (
-                        <span className="text-xs bg-amber-100 text-amber-700 px-1 rounded shrink-0">PK</span>
-                      )}
-                      {col.comment && (
-                        <span className="text-slate-400 truncate">{col.comment}</span>
-                      )}
-                    </div>
+                    <Tooltip key={col.name} content={colTooltip} placement="right">
+                      <div
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs hover:bg-slate-100 cursor-default"
+                      >
+                        <Columns size={11} className="text-slate-400 shrink-0" />
+                        <span className="text-slate-700 font-mono truncate max-w-[80px]">{col.name}</span>
+                        <span className="text-slate-400 truncate max-w-[60px]">{col.type}</span>
+                        {col.key === 'PRI' && (
+                          <span className="text-xs bg-amber-100 text-amber-700 px-1 rounded shrink-0">PK</span>
+                        )}
+                        {col.comment && (
+                          <span className="text-slate-400 truncate">{col.comment}</span>
+                        )}
+                      </div>
+                    </Tooltip>
                   )
                 })}
               </div>

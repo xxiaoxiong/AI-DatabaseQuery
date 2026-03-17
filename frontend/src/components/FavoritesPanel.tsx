@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
-import { Star, Trash2, Edit2, Loader2, Heart, Search, X } from 'lucide-react'
+import { Star, Trash2, Edit2, Loader2, Heart, Search, AlertTriangle } from 'lucide-react'
 import { queryApi } from '../api/query'
+import { toast } from './Toast'
 
 interface Favorite {
   id: number
@@ -57,17 +58,21 @@ export default function FavoritesPanel() {
   }, [searchKeyword, selectedTags])
 
   const handleDelete = async (id: number) => {
-    if (!confirm('确定要删除这个收藏吗？')) return
     try {
       await queryApi.deleteFavorite(id)
       setFavorites(f => f.filter(item => item.id !== id))
+      toast.success('已删除收藏')
     } catch (e) {
       console.error('删除失败', e)
+      toast.error('删除失败')
+    } finally {
+      setConfirmDeleteId(null)
     }
   }
 
   const [editNL, setEditNL] = useState('')
   const [editSQL, setEditSQL] = useState('')
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
 
   const handleSaveEdit = async (id: number) => {
     try {
@@ -264,27 +269,46 @@ export default function FavoritesPanel() {
                       </div>
                     )}
 
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => {
-                          setEditingId(fav.id)
-                          setEditNL(fav.natural_language || '')
-                          setEditSQL(fav.generated_sql || '')
-                          setEditTags(fav.tags || '')
-                          setEditDesc(fav.description || '')
-                        }}
-                        className="flex-1 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 rounded transition-colors"
-                      >
-                        <Edit2 size={14} className="inline mr-1" />
-                        编辑
-                      </button>
-                      <button
-                        onClick={() => handleDelete(fav.id)}
-                        className="px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 rounded transition-colors"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
+                    {confirmDeleteId === fav.id ? (
+                      <div className="flex items-center gap-2 p-2.5 bg-red-50 border border-red-200 rounded-lg">
+                        <AlertTriangle size={13} className="text-red-500 shrink-0" />
+                        <span className="text-xs text-red-700 flex-1">确定删除这个收藏？</span>
+                        <button
+                          onClick={() => setConfirmDeleteId(null)}
+                          className="px-2 py-1 text-xs text-slate-600 hover:bg-slate-100 rounded transition-colors"
+                        >
+                          取消
+                        </button>
+                        <button
+                          onClick={() => handleDelete(fav.id)}
+                          className="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+                        >
+                          删除
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                            setEditingId(fav.id)
+                            setEditNL(fav.natural_language || '')
+                            setEditSQL(fav.generated_sql || '')
+                            setEditTags(fav.tags || '')
+                            setEditDesc(fav.description || '')
+                          }}
+                          className="flex-1 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 rounded transition-colors"
+                        >
+                          <Edit2 size={14} className="inline mr-1" />
+                          编辑
+                        </button>
+                        <button
+                          onClick={() => setConfirmDeleteId(fav.id)}
+                          className="px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 rounded transition-colors"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    )}
                   </>
                 )}
               </div>

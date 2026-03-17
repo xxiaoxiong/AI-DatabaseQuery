@@ -6,6 +6,7 @@ import DataSourcesPage from './pages/DataSourcesPage'
 import HistoryPage from './pages/HistoryPage'
 import SettingsPage from './pages/SettingsPage'
 import TableProfilePage from './pages/TableProfilePage'
+import ToastContainer from './components/Toast'
 
 const queryClient = new QueryClient()
 
@@ -24,6 +25,7 @@ function App() {
           </Route>
         </Routes>
       </BrowserRouter>
+      <ToastContainer />
     </QueryClientProvider>
   )
 }
