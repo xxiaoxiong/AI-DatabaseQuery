@@ -133,7 +133,7 @@ export default function QueryPage() {
   }, [activeDatasourceId])
 
   // 快速执行收藏
-  const handleExecuteFavorite = useCallback(async (favoriteId: number, customSQL?: string) => {
+  const handleExecuteFavorite = useCallback(async (_favoriteId: number, customSQL?: string) => {
     setError(null)
     setQueryLoading(true)
     try {

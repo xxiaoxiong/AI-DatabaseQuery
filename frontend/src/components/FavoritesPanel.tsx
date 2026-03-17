@@ -24,7 +24,6 @@ export default function FavoritesPanel() {
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editTags, setEditTags] = useState('')
   const [editDesc, setEditDesc] = useState('')
-  const [executing, setExecuting] = useState<number | null>(null)
 
   const loadFavorites = async () => {
     setLoading(true)
@@ -40,9 +39,9 @@ export default function FavoritesPanel() {
       
       // 提取所有标签
       const tags = new Set<string>()
-      data.forEach(fav => {
+      data.forEach((fav: Favorite) => {
         if (fav.tags) {
-          fav.tags.split(',').forEach(tag => tags.add(tag.trim()))
+          fav.tags.split(',').forEach((tag: string) => tags.add(tag.trim()))
         }
       })
       setAllTags(Array.from(tags).sort())
@@ -94,19 +93,6 @@ export default function FavoritesPanel() {
       setEditingId(null)
     } catch (e) {
       console.error('更新失败', e)
-    }
-  }
-
-  const handleExecute = async (id: number) => {
-    setExecuting(id)
-    try {
-      await queryApi.executeFavorite(id)
-      // 重新加载以更新执行次数
-      await loadFavorites()
-    } catch (e) {
-      console.error('执行失败', e)
-    } finally {
-      setExecuting(null)
     }
   }
 

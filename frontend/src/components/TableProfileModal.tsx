@@ -51,7 +51,7 @@ export default function TableProfileModal({ dsId, tableName, onClose }: Props) {
     }
   }
 
-  const parseJSON = (str: string | null) => {
+  const parseJSON = (str: string | null | undefined) => {
     if (!str) return {}
     try {
       return JSON.parse(str)

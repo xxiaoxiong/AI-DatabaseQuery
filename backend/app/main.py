@@ -1,9 +1,11 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 import logging
 import traceback
+import os
 
 from app.database import init_db
 from app.routers import datasources, query, ai, settings
@@ -55,3 +57,21 @@ async def global_exception_handler(request: Request, exc: Exception):
         status_code=500,
         content={"detail": str(exc), "traceback": traceback.format_exc()},
     )
+
+
+# 挂载前端静态文件（放在所有路由之后）
+_STATIC_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "web")
+_STATIC_DIR = os.path.normpath(_STATIC_DIR)
+
+if os.path.isdir(_STATIC_DIR):
+    app.mount("/assets", StaticFiles(directory=os.path.join(_STATIC_DIR, "assets")), name="assets")
+
+    @app.get("/vite.svg")
+    async def vite_svg():
+        return FileResponse(os.path.join(_STATIC_DIR, "vite.svg"))
+
+    @app.get("/{full_path:path}")
+    async def serve_spa(full_path: str):
+        """SPA 回退：所有非 API 路径均返回 index.html"""
+        index = os.path.join(_STATIC_DIR, "index.html")
+        return FileResponse(index)
