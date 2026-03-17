@@ -78,9 +78,15 @@ export default function SchemaBrowser({ schema, loading, dsId }: Props) {
                 <ChevronRight size={12} className="text-slate-400 shrink-0" />
               )}
               <Table2 size={13} className="text-blue-500 shrink-0" />
-              <span className="font-medium text-slate-700 truncate">{tableName}</span>
+              <span
+                className="font-medium text-slate-700 truncate"
+                title={tableInfo.comment ? `${tableName}  ${tableInfo.comment}` : tableName}
+              >{tableName}</span>
               {tableInfo.comment && (
-                <span className="text-slate-400 text-xs truncate ml-1">
+                <span
+                  className="text-slate-400 text-xs truncate ml-1"
+                  title={tableInfo.comment}
+                >
                   {tableInfo.comment}
                 </span>
               )}
@@ -107,22 +113,31 @@ export default function SchemaBrowser({ schema, loading, dsId }: Props) {
             </button>
             {expanded.has(tableName) && (
               <div className="bg-slate-50 border-l-2 border-blue-200 ml-4">
-                {tableInfo.columns.map(col => (
-                  <div
-                    key={col.name}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs"
-                  >
-                    <Columns size={11} className="text-slate-400 shrink-0" />
-                    <span className="text-slate-700 font-mono">{col.name}</span>
-                    <span className="text-slate-400">{col.type}</span>
-                    {col.key === 'PRI' && (
-                      <span className="text-xs bg-amber-100 text-amber-700 px-1 rounded">PK</span>
-                    )}
-                    {col.comment && (
-                      <span className="text-slate-400 truncate">{col.comment}</span>
-                    )}
-                  </div>
-                ))}
+                {tableInfo.columns.map(col => {
+                  const colTooltip = [
+                    col.name,
+                    col.type,
+                    col.key === 'PRI' ? 'PK' : '',
+                    col.comment || '',
+                  ].filter(Boolean).join('  |  ')
+                  return (
+                    <div
+                      key={col.name}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs hover:bg-slate-100 cursor-default"
+                      title={colTooltip}
+                    >
+                      <Columns size={11} className="text-slate-400 shrink-0" />
+                      <span className="text-slate-700 font-mono truncate max-w-[80px]">{col.name}</span>
+                      <span className="text-slate-400 truncate max-w-[60px]">{col.type}</span>
+                      {col.key === 'PRI' && (
+                        <span className="text-xs bg-amber-100 text-amber-700 px-1 rounded shrink-0">PK</span>
+                      )}
+                      {col.comment && (
+                        <span className="text-slate-400 truncate">{col.comment}</span>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
             )}
           </div>

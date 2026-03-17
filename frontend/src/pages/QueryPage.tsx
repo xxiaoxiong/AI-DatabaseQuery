@@ -7,6 +7,19 @@ import SchemaBrowser from '../components/SchemaBrowser'
 import DataTable from '../components/DataTable'
 import ChartPanel from '../components/ChartPanel'
 
+// 拖拽分隔线组件
+function ResizeDivider({ onMouseDown }: { onMouseDown: (e: React.MouseEvent) => void }) {
+  return (
+    <div
+      onMouseDown={onMouseDown}
+      className="w-1 cursor-col-resize bg-slate-200 hover:bg-blue-400 active:bg-blue-500 transition-colors shrink-0 relative group"
+      style={{ touchAction: 'none' }}
+    >
+      <div className="absolute inset-y-0 -left-1 -right-1" />
+    </div>
+  )
+}
+
 export default function QueryPage() {
   const {
     datasources, activeDatasourceId, activeSchema, schemaLoading,
@@ -31,6 +44,60 @@ export default function QueryPage() {
   const [selectedFavorite, setSelectedFavorite] = useState<any>(null)
   const [editingFavSQL, setEditingFavSQL] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  // 左侧面板宽度（表结构）
+  const [schemaWidth, setSchemaWidth] = useState(224) // 默认 w-56 = 224px
+  const schemaResizing = useRef(false)
+  const schemaResizeStartX = useRef(0)
+  const schemaResizeStartWidth = useRef(0)
+
+  // 右侧面板宽度（AI分析）
+  const [aiPanelWidth, setAiPanelWidth] = useState(288) // 默认 w-72 = 288px
+  const aiResizing = useRef(false)
+  const aiResizeStartX = useRef(0)
+  const aiResizeStartWidth = useRef(0)
+
+  const handleSchemaResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    schemaResizing.current = true
+    schemaResizeStartX.current = e.clientX
+    schemaResizeStartWidth.current = schemaWidth
+
+    const onMouseMove = (ev: MouseEvent) => {
+      if (!schemaResizing.current) return
+      const delta = ev.clientX - schemaResizeStartX.current
+      const newWidth = Math.min(480, Math.max(160, schemaResizeStartWidth.current + delta))
+      setSchemaWidth(newWidth)
+    }
+    const onMouseUp = () => {
+      schemaResizing.current = false
+      window.removeEventListener('mousemove', onMouseMove)
+      window.removeEventListener('mouseup', onMouseUp)
+    }
+    window.addEventListener('mousemove', onMouseMove)
+    window.addEventListener('mouseup', onMouseUp)
+  }, [schemaWidth])
+
+  const handleAiResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    aiResizing.current = true
+    aiResizeStartX.current = e.clientX
+    aiResizeStartWidth.current = aiPanelWidth
+
+    const onMouseMove = (ev: MouseEvent) => {
+      if (!aiResizing.current) return
+      const delta = aiResizeStartX.current - ev.clientX
+      const newWidth = Math.min(600, Math.max(160, aiResizeStartWidth.current + delta))
+      setAiPanelWidth(newWidth)
+    }
+    const onMouseUp = () => {
+      aiResizing.current = false
+      window.removeEventListener('mousemove', onMouseMove)
+      window.removeEventListener('mouseup', onMouseUp)
+    }
+    window.addEventListener('mousemove', onMouseMove)
+    window.addEventListener('mouseup', onMouseUp)
+  }, [aiPanelWidth])
 
   useEffect(() => {
     datasourceApi.list().then(ds => {
@@ -210,7 +277,7 @@ export default function QueryPage() {
   return (
     <div className="flex h-full overflow-hidden">
       {/* Left: Schema Browser */}
-      <div className="w-56 border-r border-slate-200 bg-white flex flex-col shrink-0">
+      <div className="border-r border-slate-200 bg-white flex flex-col shrink-0" style={{ width: schemaWidth }}>
         <div className="p-2 border-b border-slate-200">
           <select
             className="w-full text-sm border border-slate-200 rounded px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
@@ -231,6 +298,7 @@ export default function QueryPage() {
           <SchemaBrowser schema={activeSchema} loading={schemaLoading} dsId={activeDatasourceId ?? undefined} />
         </div>
       </div>
+      <ResizeDivider onMouseDown={handleSchemaResizeStart} />
 
       {/* Center: Query + Results */}
       <div className="flex-1 flex flex-col overflow-hidden">
@@ -539,7 +607,9 @@ export default function QueryPage() {
 
       {/* Right: AI Analysis Panel */}
       {queryResult?.ai_summary && (
-        <div className={`border-l border-slate-200 bg-white flex flex-col transition-all ${aiPanelOpen ? 'w-72' : 'w-10'} shrink-0`}>
+        <>
+        <ResizeDivider onMouseDown={handleAiResizeStart} />
+        <div className="border-l border-slate-200 bg-white flex flex-col shrink-0" style={{ width: aiPanelOpen ? aiPanelWidth : 40 }}>
           <div className="flex items-center justify-between p-3 border-b border-slate-200">
             {aiPanelOpen && (
               <div className="flex items-center gap-2 text-sm font-medium text-slate-700">
@@ -568,6 +638,7 @@ export default function QueryPage() {
             </div>
           )}
         </div>
+        </>
       )}
     </div>
   )
